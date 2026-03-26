@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول | ArtExpert Vision</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&display=swap');
+    body{font-family:'Cairo',sans-serif;background:radial-gradient(circle at top right,rgba(15,118,110,.16),transparent 24%),linear-gradient(135deg,#0f172a,#13293d 60%,#0f766e);min-height:100vh}
+    .glass{background:rgba(255,255,255,.88);backdrop-filter:blur(14px)}
+  </style>
+</head>
+<body class="p-4 md:p-8">
+  <main class="max-w-6xl mx-auto min-h-[calc(100vh-4rem)] grid lg:grid-cols-[0.95fr_1.05fr] gap-8 items-center">
+    <section class="text-white">
+      <a href="/" class="inline-flex items-center gap-3 text-white/90 font-black text-2xl">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-900">A</span>
+        <span>ArtExpert Vision</span>
+      </a>
+      <h1 class="mt-8 text-4xl md:text-5xl font-black leading-tight">بوابة الدخول الاحترافية للمنصة</h1>
+      <p class="mt-5 text-slate-200 leading-8">صفحة دخول أوضح وأسرع وأكثر احترافية. ادخل بحسابك أو أنشئ حسابًا جديدًا، وبعدها تعود مباشرة إلى المنصة مع حفظ الجلسة والأعمال داخل حسابك.</p>
+      <div class="mt-6 space-y-3 text-sm">
+        <div class="rounded-2xl bg-white/10 px-4 py-3">الاسم الرباعي مطلوب ويُستخدم في الشهادة الرسمية.</div>
+        <div class="rounded-2xl bg-white/10 px-4 py-3">كلمة المرور: 10 أحرف على الأقل، حرف كبير، حرف صغير، رقم، ورمز.</div>
+        <div class="rounded-2xl bg-white/10 px-4 py-3">بيانات الدخول تُحفَظ بشكل آمن داخل المنصة ولا تُعرَض كنص خام.</div>
+        <div class="rounded-2xl bg-white/10 px-4 py-3">مثال اسم صحيح للشهادة: محمد أحمد صالح العتيبي.</div>
+      </div>
+    </section>
+
+    <section class="glass rounded-[2.5rem] p-6 md:p-8 shadow-2xl">
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="rounded-[2rem] bg-slate-50 p-6">
+          <h2 class="text-2xl font-black text-slate-900">تسجيل الدخول</h2>
+          <div class="mt-5 space-y-4">
+            <input id="loginEmail" type="email" placeholder="البريد الإلكتروني" class="w-full rounded-2xl border border-slate-200 px-4 py-4">
+            <input id="loginPassword" type="password" placeholder="كلمة المرور" class="w-full rounded-2xl border border-slate-200 px-4 py-4">
+            <button id="loginBtn" onclick="login()" class="w-full rounded-2xl bg-slate-900 py-4 text-white font-black">دخول</button>
+            <p class="text-xs text-slate-500">اكتب البريد بصيغة صحيحة مثل <span dir="ltr">name@example.com</span>.</p>
+          </div>
+        </div>
+        <div class="rounded-[2rem] bg-slate-50 p-6">
+          <h2 class="text-2xl font-black text-slate-900">إنشاء حساب</h2>
+          <div class="mt-5 space-y-4">
+            <input id="registerName" type="text" placeholder="الاسم الرباعي" class="w-full rounded-2xl border border-slate-200 px-4 py-4">
+            <input id="registerEmail" type="email" placeholder="البريد الإلكتروني @" class="w-full rounded-2xl border border-slate-200 px-4 py-4">
+            <input id="registerPassword" type="password" placeholder="كلمة مرور قوية" class="w-full rounded-2xl border border-slate-200 px-4 py-4">
+            <button id="registerBtn" onclick="register()" class="w-full rounded-2xl bg-teal-700 py-4 text-white font-black">إنشاء حساب جديد</button>
+            <div class="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-xs text-teal-800">
+              المطلوب: اسم رباعي، بريد فيه @، وكلمة مرور قوية جدًا.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function showToast(message){ alert(message); }
+    async function api(path, body){
+      const response = await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data = await response.json().catch(()=>({}));
+      if(!response.ok) throw new Error(data.error || 'حدث خطأ');
+      return data;
+    }
+    function setBusy(buttonId,isBusy,label){
+      const btn=document.getElementById(buttonId);
+      btn.disabled=isBusy;
+      btn.textContent=isBusy?'جارٍ التنفيذ...':label;
+      btn.classList.toggle('opacity-70',isBusy);
+    }
+    async function login(){
+      try{
+        setBusy('loginBtn',true,'دخول');
+        const data = await api('/api/login',{email:document.getElementById('loginEmail').value.trim(),password:document.getElementById('loginPassword').value});
+        localStorage.setItem('artToken',data.token);
+        location.href='/';
+      }catch(error){ showToast(error.message); }
+      finally{ setBusy('loginBtn',false,'دخول'); }
+    }
+    async function register(){
+      try{
+        setBusy('registerBtn',true,'إنشاء حساب جديد');
+        const data = await api('/api/register',{name:document.getElementById('registerName').value.trim(),email:document.getElementById('registerEmail').value.trim(),password:document.getElementById('registerPassword').value});
+        localStorage.setItem('artToken',data.token);
+        location.href='/';
+      }catch(error){ showToast(error.message); }
+      finally{ setBusy('registerBtn',false,'إنشاء حساب جديد'); }
+    }
+    document.addEventListener('keydown',(event)=>{
+      if(event.key==='Enter'){
+        if(document.activeElement && ['loginEmail','loginPassword'].includes(document.activeElement.id)) login();
+        if(document.activeElement && ['registerName','registerEmail','registerPassword'].includes(document.activeElement.id)) register();
+      }
+    });
+  </script>
+</body>
+</html>

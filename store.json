@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": "aac0400b-263d-444f-ae36-eda480e5fd83",
+      "name": "Art Expert Vision Admin",
+      "email": "admin@artexpert.local",
+      "passwordHash": "aecac3c8111ea82eea0b51e34a326bd18c4577a5af15761a7ec44f930d0d051a",
+      "role": "admin",
+      "points": 500,
+      "rank": "أسطورة النقد",
+      "createdAt": "2026-03-26T12:47:32.208Z"
+    }
+  ],
+  "sessions": {},
+  "artworks": [],
+  "comments": []
+}

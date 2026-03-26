@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ArtExpert Vision</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;800;900&family=Cormorant+Garamond:wght@500;600;700&display=swap');
+    html{scroll-behavior:smooth}
+    body{
+      font-family:'Cairo',sans-serif;
+      background:
+        linear-gradient(rgba(15,15,15,.92),rgba(15,15,15,.92)),
+        radial-gradient(circle at top left,rgba(139,0,0,.10),transparent 22%),
+        radial-gradient(circle at bottom right,rgba(214,209,199,.06),transparent 18%),
+        repeating-linear-gradient(0deg,rgba(255,255,255,.02),rgba(255,255,255,.02) 1px,transparent 1px,transparent 3px),
+        repeating-linear-gradient(90deg,rgba(255,255,255,.015),rgba(255,255,255,.015) 1px,transparent 1px,transparent 4px),
+        linear-gradient(135deg,#111111,#191714 55%,#141312);
+      color:#f5f5f5;
+      min-height:100vh;
+      position:relative
+    }
+    body:before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.18;
+      background-image:
+        radial-gradient(rgba(255,255,255,.18) .6px, transparent .7px);
+      background-size:12px 12px;
+      mix-blend-mode:soft-light
+    }
+    .serif{font-family:'Cormorant Garamond',serif}
+    .glass{background:rgba(245,241,232,.93);backdrop-filter:blur(10px);border:1px solid rgba(88,74,58,.12);color:#1c1714}
+    .hero{
+      background:
+        linear-gradient(rgba(20,18,16,.72),rgba(20,18,16,.76)),
+        linear-gradient(135deg,#1a1816,#27211b 52%,#1d1a17);
+      border:1px solid rgba(214,209,199,.12)
+    }
+    .scan{position:absolute;inset-inline:0;height:3px;background:linear-gradient(90deg,transparent,#2dd4bf,#fb923c,transparent);box-shadow:0 0 22px rgba(45,212,191,.7);animation:scanMove 2.2s infinite ease-in-out}
+    @keyframes scanMove{0%{top:0;opacity:.3}50%{top:calc(100% - 4px);opacity:1}100%{top:0;opacity:.3}}
+    .art-card{transition:transform .3s ease,box-shadow .3s ease}
+    .art-card:hover{transform:translateY(-4px);box-shadow:0 20px 40px rgba(0,0,0,.18)}
+    .soft-zoom img{transition:transform .45s ease,filter .45s ease}
+    .soft-zoom:hover img{transform:scale(1.03);filter:saturate(1.03)}
+    .accent-line{height:1px;background:linear-gradient(90deg,transparent,#8b0000,transparent)}
+  </style>
+</head>
+<body>
+  <nav class="sticky top-0 z-50 border-b border-white/10 bg-[#111111]/85 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex flex-wrap gap-3 items-center justify-between">
+      <button onclick="window.scrollTo({top:0,behavior:'smooth'})" class="flex items-center gap-3 text-2xl font-black text-[#f5f5f5]">
+        <span class="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#d6d1c7] text-[#111111] shadow-lg">
+          <svg viewBox="0 0 64 64" class="h-7 w-7" fill="none">
+            <path d="M10 44C19 28 29 20 39 20C48 20 54 27 54 36C54 46 47 54 36 54C24 54 16 50 10 44Z" fill="#8b0000"/>
+            <path d="M18 22L31 10L44 22L31 34L18 22Z" fill="#111111"/>
+            <circle cx="31" cy="22" r="5" fill="#0F172A"/>
+          </svg>
+        </span>
+        <span>ArtExpert Vision</span>
+      </button>
+      <div class="flex flex-wrap gap-3 items-center">
+        <div id="modelStatus" class="text-xs bg-[#d6d1c7] text-[#1a1614] px-3 py-2 rounded-full font-bold">التحليل السريع جاهز فورًا، والنموذج الذكي يتحمل بالخلفية...</div>
+        <div id="authState" class="hidden text-xs bg-[#f5f1e8] text-[#1a1614] px-3 py-2 rounded-full font-bold"></div>
+        <button id="authToggleBtn" onclick="goToLoginPage()" class="rounded-2xl bg-[#8b0000] px-5 py-3 text-white font-bold">الدخول / إنشاء حساب</button>
+        <button id="logoutBtn" onclick="logout()" class="hidden rounded-2xl bg-rose-600 px-5 py-3 text-white font-bold">تسجيل الخروج</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8">
+    <section class="hero rounded-[2.5rem] p-6 md:p-10 text-white shadow-2xl">
+      <div class="grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
+        <div>
+          <p class="serif text-lg tracking-[0.2em] text-[#d6d1c7]">ART CRITIQUE JOURNAL</p>
+          <h1 class="serif text-5xl md:text-6xl font-semibold leading-[1.05] text-[#f5f5f5]">منصة نقد فني احترافية تمنح العمل قراءة واعية لا مجرد تقييم عابر</h1>
+          <p class="mt-5 text-[#d6d1c7] leading-8 text-lg">ArtExpert Vision تجربة أقرب إلى معرض ومجلة نقد: أعمال كبيرة، هوية بصرية هادئة، تحليل فني منظم، وملاحظات دقيقة تشرح أين ينجح العمل وأين يتعثر وكيف يتطور.</p>
+          <div class="accent-line mt-6 mb-6"></div>
+          <div class="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div class="rounded-2xl bg-white/10 p-4">تحليل شبكي للصورة</div>
+            <div class="rounded-2xl bg-white/10 p-4">شهادة PDF ذكية</div>
+            <div class="rounded-2xl bg-white/10 p-4">رتب ونقاط وتعليقات</div>
+            <div class="rounded-2xl bg-white/10 p-4">لوحة أدمن احترافية</div>
+          </div>
+        </div>
+        <div class="glass rounded-[2rem] p-6 text-slate-900">
+          <h2 class="serif text-3xl font-semibold text-[#1c1714]">هوية المنصة</h2>
+          <div class="mt-4 rounded-[2rem] bg-[#171412] p-6 text-white shadow-xl">
+            <div class="flex items-center gap-4">
+              <div class="inline-flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-gradient-to-br from-[#d6d1c7] to-[#8b0000] shadow-lg">
+                <svg viewBox="0 0 64 64" class="h-10 w-10" fill="none">
+                  <path d="M10 44C19 28 29 20 39 20C48 20 54 27 54 36C54 46 47 54 36 54C24 54 16 50 10 44Z" fill="#F8FAFC"/>
+                  <path d="M18 22L31 10L44 22L31 34L18 22Z" fill="#0F172A"/>
+                  <circle cx="31" cy="22" r="5" fill="#FB923C"/>
+                </svg>
+              </div>
+              <div>
+                <div class="text-xs uppercase tracking-[0.25em] text-teal-200">Digital Art Critique</div>
+                <div class="text-2xl font-black">ArtExpert Vision</div>
+              </div>
+            </div>
+            <p class="mt-5 text-[#d6d1c7] leading-8">الإحساس هنا أقرب إلى قاعة عرض واقعية: أسطح داكنة، خامات هادئة، مساحات تنفس، وتركيز على العمل نفسه قبل أي عنصر تقني.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid xl:grid-cols-[1.1fr_0.9fr] gap-8">
+      <div class="space-y-8">
+        <section class="glass rounded-[2.5rem] p-6 md:p-8 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 class="text-3xl font-black">رفع عمل جديد وتحليل فوري</h2>
+              <p class="mt-2 text-slate-600 leading-8">النقد الآن أقوى وأوضح: يعطي خلاصة مختصرة، يبيّن النواقص والسلبيات، ويحلل الصورة على مربعات لتحديد أين يحتاج العمل إلى تطوير حقيقي.</p>
+            </div>
+            <div class="rounded-2xl bg-orange-50 text-orange-700 px-4 py-3 font-bold text-sm">الشهادة مخفية حتى 98%+</div>
+          </div>
+          <div class="mt-6 grid md:grid-cols-[1fr_auto] gap-4 items-end">
+            <div>
+              <label for="artTitle" class="block mb-2 text-sm font-bold">عنوان العمل</label>
+              <input id="artTitle" type="text" placeholder="مثال: ضوء بعد المطر" class="w-full rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            </div>
+            <div>
+              <input id="imgInput" type="file" accept="image/*" class="hidden">
+              <label for="imgInput" class="inline-flex cursor-pointer items-center justify-center rounded-2xl bg-teal-700 px-8 py-4 font-black text-white shadow-lg">اختر الصورة</label>
+            </div>
+          </div>
+          <div id="analysisBox" class="hidden mt-8 grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
+            <div class="relative rounded-[2rem] overflow-hidden bg-black shadow-2xl h-fit">
+              <div id="scanLine" class="scan hidden"></div>
+              <canvas id="canvas" class="w-full h-auto"></canvas>
+            </div>
+            <div class="space-y-4">
+              <div class="rounded-[2rem] bg-slate-950 p-6 text-white shadow-2xl">
+                <div class="flex items-start justify-between gap-4 mb-5">
+                  <h3 class="text-xl font-black text-teal-200">نتيجة النقد الفني</h3>
+                  <div id="scoreBadge" class="hidden rounded-full bg-white/10 px-4 py-2 text-sm font-black text-orange-200"></div>
+                </div>
+                <div id="results" class="space-y-4 text-sm leading-8"></div>
+              </div>
+              <div class="grid md:grid-cols-2 gap-4">
+                <button onclick="saveArtwork()" class="rounded-2xl bg-slate-900 py-4 text-white font-black">حفظ العمل في السيرفر</button>
+                <button onclick="downloadCertificate()" id="certificateBtn" class="hidden rounded-2xl bg-orange-600 py-4 text-white font-black">تحميل الشهادة PDF</button>
+              </div>
+              <p id="analysisHint" class="rounded-2xl bg-white px-4 py-4 text-sm text-slate-700 border border-slate-100">ارفع الصورة الآن، ثم احفظها في حسابك ليتم تخزينها داخل المنصة وظهورها في ملفك الشخصي والمعرض.</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="certificateSection" class="hidden glass rounded-[2.5rem] p-6 md:p-10 shadow-xl">
+          <div class="rounded-[2.5rem] border-[10px] border-slate-200 bg-gradient-to-br from-amber-50 via-white to-teal-50 p-8 md:p-12">
+            <div class="rounded-[2rem] border border-white bg-white/80 p-8 md:p-12 text-center">
+              <div class="flex flex-wrap items-center justify-between gap-4 text-right">
+                <div>
+                  <p class="text-sm font-bold tracking-[0.25em] text-teal-700">ARTEXPERT VISION</p>
+                  <h2 class="mt-2 text-3xl font-black text-slate-900">شهادة تميز فني</h2>
+                </div>
+                <div id="certificateScore" class="rounded-full bg-orange-100 px-5 py-2 text-lg font-black text-orange-700">98%</div>
+              </div>
+              <p class="mt-12 text-slate-500 font-bold">تُمنح إلى</p>
+              <p id="certificateName" class="mt-4 text-4xl md:text-5xl font-black text-slate-900"></p>
+              <p id="certificateText" class="mt-6 mx-auto max-w-3xl text-slate-700 leading-8"></p>
+              <p id="certificateDate" class="mt-6 text-sm text-slate-500"></p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="space-y-8">
+        <section id="profileSection" class="glass rounded-[2.5rem] p-6 shadow-xl">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-black">ملفي الشخصي</h2>
+              <p class="text-slate-600 mt-2">ملف واضح يضم الأعمال المحفوظة، النقاط، الرتبة، وسجل الحضور الفني داخل المنصة.</p>
+            </div>
+            <div id="profileRankPill" class="rounded-full bg-slate-900 px-4 py-2 text-sm font-black text-white">ضيف</div>
+          </div>
+          <div id="profileCard" class="mt-5 rounded-[2rem] bg-white p-5 shadow space-y-3"><p class="text-slate-500">لم يتم تسجيل الدخول بعد.</p></div>
+          <div class="mt-5">
+            <h3 class="font-black">أعمالي المحفوظة</h3>
+            <div id="myWorks" class="mt-4 space-y-3 max-h-[360px] overflow-auto"></div>
+          </div>
+        </section>
+
+        <section class="glass rounded-[2.5rem] p-6 shadow-xl">
+          <h2 class="text-2xl font-black">لوحة المتصدرين</h2>
+          <p class="text-slate-600 mt-2">ترتيب حيّ لأقوى أصحاب النقد والتفاعل والأعمال.</p>
+          <div id="leaderboard" class="mt-5 space-y-3"></div>
+        </section>
+
+        <section id="adminSection" class="hidden glass rounded-[2.5rem] p-6 shadow-xl">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-black">لوحة الأدمن</h2>
+              <p class="text-slate-600 mt-2">إدارة المستخدمين، الردود، والنقاط.</p>
+            </div>
+            <div class="rounded-full bg-amber-100 px-4 py-2 text-sm font-black text-amber-800">صلاحية كاملة</div>
+          </div>
+          <div id="adminOverview" class="mt-5 grid md:grid-cols-3 gap-3"></div>
+          <div class="mt-6">
+            <h3 class="font-black mb-3">المستخدمون</h3>
+            <div id="adminUsers" class="space-y-3 max-h-[260px] overflow-auto"></div>
+          </div>
+          <div class="mt-6">
+            <h3 class="font-black mb-3">آخر الردود</h3>
+            <div id="adminComments" class="space-y-3 max-h-[260px] overflow-auto"></div>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="glass rounded-[2.5rem] p-6 md:p-8 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 class="text-3xl font-black">معرض الأعمال</h2>
+          <p class="mt-2 text-slate-600 leading-8">كل عمل محفوظ هنا مع مستواه، ملاحظاته، تعليقاته، والتطويرات المقترحة عليه من المجتمع.</p>
+        </div>
+      </div>
+      <div id="gallery" class="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6"></div>
+    </section>
+
+    <section class="grid xl:grid-cols-2 gap-6">
+      <section class="glass rounded-[2.5rem] p-6 shadow-xl">
+        <h3 class="serif text-3xl font-semibold">مقارنة عملين</h3>
+        <p class="mt-3 text-slate-600 leading-8">للتعلم والفهم الأعمق: قارن عملين جنبًا إلى جنب في الفكرة، التنفيذ، والقراءة البصرية.</p>
+        <div id="compareWorks" class="mt-6 grid md:grid-cols-2 gap-4"></div>
+      </section>
+      <section id="artistProfilePanel" class="glass rounded-[2.5rem] p-6 shadow-xl">
+        <h3 class="serif text-3xl font-semibold">صفحة الفنان</h3>
+        <p class="mt-3 text-slate-600 leading-8">اضغط اسم أي فنان في المعرض لتظهر هنا صفحته الخاصة، أعماله، متابعوه، وتطوره عبر الزمن.</p>
+        <div id="artistProfileContent" class="mt-6 rounded-2xl bg-white p-5 text-slate-500">لم يتم اختيار فنان بعد.</div>
+      </section>
+    </section>
+
+    <section class="grid lg:grid-cols-3 gap-6">
+      <div class="glass rounded-[2.5rem] p-6 shadow-xl">
+        <h3 class="text-2xl font-black">التحديات</h3>
+        <p class="mt-3 text-slate-600 leading-8">حوّل المنصة إلى مساحة تدريب فعلية: موضوع أسبوعي، أعمال مشاركة، ثم نقد واختيار الأفضل.</p>
+        <div class="mt-4 rounded-2xl bg-slate-900 p-4 text-white">
+          <div class="font-black">تحدي الأسبوع</div>
+          <div class="mt-2 text-sm text-slate-300">ارسم أو صمم عملًا عن العزلة البصرية بدون الاعتماد على الوجوه.</div>
+        </div>
+      </div>
+      <div class="glass rounded-[2.5rem] p-6 shadow-xl">
+        <h3 class="text-2xl font-black">الاكتشاف الذكي</h3>
+        <p class="mt-3 text-slate-600 leading-8">تصنيف حسب المزاج، الأسلوب، والرسالة حتى يصبح اكتشاف الأعمال أعمق من مجرد عرض صور.</p>
+        <div class="mt-4 flex flex-wrap gap-2 text-sm">
+          <span class="rounded-full bg-slate-900 px-3 py-2 text-white">Dark</span>
+          <span class="rounded-full bg-teal-700 px-3 py-2 text-white">Abstract</span>
+          <span class="rounded-full bg-amber-500 px-3 py-2 text-white">Personal</span>
+          <span class="rounded-full bg-slate-200 px-3 py-2">Surreal</span>
+        </div>
+      </div>
+      <div class="glass rounded-[2.5rem] p-6 shadow-xl">
+        <h3 class="text-2xl font-black">محتوى نقدي</h3>
+        <p class="mt-3 text-slate-600 leading-8">المنصة ليست معرضًا فقط، بل مرجعًا نقديًا يضم عمل الأسبوع وأفكار قراءة الأعمال بصريًا.</p>
+        <div class="mt-4 rounded-2xl bg-amber-50 p-4 border border-amber-200">
+          <div class="font-black text-amber-900">عمل الأسبوع</div>
+          <div class="mt-2 text-sm text-amber-800">أفضل الأعمال هنا هي التي تحمل فكرة واضحة، تنفيذًا مضبوطًا، ولغة بصرية متماسكة.</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
